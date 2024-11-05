@@ -154,9 +154,9 @@ def register():
 
 
         if(not errored):
-            statement = """INSERT INTO users(id,username,password) VALUES(null,'%s','%s');""" %(username,password)
+            statement = """INSERT INTO users(id, username, password) VALUES(null, ?, ?);"""
             print(statement)
-            c.execute(statement)
+            c.execute(statement, (username, password))
             db.commit()
             db.close()
             return f"""<html>
