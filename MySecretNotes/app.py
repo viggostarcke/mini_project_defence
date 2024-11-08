@@ -1,6 +1,6 @@
-import json, sqlite3, click, functools, os, hashlib,time, random, sys
+import json, sqlite3, click, functools, os, hashlib, time, random, sys
 from flask import Flask, current_app, g, session, redirect, render_template, url_for, request
-
+from werkzeug.security import generate_password_hash, check_password_hash
 
 
 
@@ -10,34 +10,37 @@ def connect_db():
     return sqlite3.connect(app.database)
 
 def init_db():
-    """Initializes the database with our great SQL schema"""
+    """Initializes the database with our SQL schema"""
     conn = connect_db()
     db = conn.cursor()
     db.executescript("""
+    DROP TABLE IF EXISTS users;
+    DROP TABLE IF EXISTS notes;
 
-DROP TABLE IF EXISTS users;
-DROP TABLE IF EXISTS notes;
+    CREATE TABLE notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        assocUser INTEGER NOT NULL,
+        dateWritten DATETIME NOT NULL,
+        note TEXT NOT NULL,
+        publicID INTEGER NOT NULL
+    );
 
-CREATE TABLE notes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    assocUser INTEGER NOT NULL,
-    dateWritten DATETIME NOT NULL,
-    note TEXT NOT NULL,
-    publicID INTEGER NOT NULL
-);
+    CREATE TABLE users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL
+    );
 
-CREATE TABLE users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT NOT NULL,
-    password TEXT NOT NULL
-);
+    INSERT INTO users (username, password) VALUES('admin', ?);
+    INSERT INTO users (username, password) VALUES('bernardo', ?);
+    """, (generate_password_hash("password"), generate_password_hash("omgMPC")))
 
-INSERT INTO users VALUES(null,"admin", "password");
-INSERT INTO users VALUES(null,"bernardo", "omgMPC");
-INSERT INTO notes VALUES(null,2,"1993-09-23 10:10:10","hello my friend",1234567890);
-INSERT INTO notes VALUES(null,2,"1993-09-23 12:10:10","i want lunch pls",1234567891);
+    db.execute("INSERT INTO notes (assocUser, dateWritten, note, publicID) VALUES (2, '1993-09-23 10:10:10', 'hello my friend', 1234567890);")
+    db.execute("INSERT INTO notes (assocUser, dateWritten, note, publicID) VALUES (2, '1993-09-23 12:10:10', 'i want lunch pls', 1234567891);")
 
-""")
+    conn.commit()
+    conn.close()
+
 
 
 
@@ -127,51 +130,39 @@ def login():
             error = "Wrong username or password!"
     return render_template('login.html',error=error)
 
-
 @app.route("/register/", methods=('GET', 'POST'))
 def register():
-    errored = False
     usererror = ""
     passworderror = ""
-    if request.method == 'POST':
-        
 
+    if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        db = connect_db()
-        c = db.cursor()
-        user_statement = """SELECT * FROM users WHERE username = ?;"""
-        pass_statement = """SELECT * FROM users WHERE password = ?;"""
-        c.execute(user_statement, (username,))
-        if(len(c.fetchall())>0):
-            errored = True
-            usererror = "That username is already in use by someone else!"
 
-        c.execute(pass_statement, (password,))
-        if(len(c.fetchall())>0):
-            errored = True
-            passworderror = "That password is already in use by someone else!"
+        if not username:
+            usererror = "Username invalid."
+        if not password:
+            passworderror = "Password invalid."
 
+        if username and password:
+            db = connect_db()
+            c = db.cursor()
 
-        if(not errored):
-            statement = """INSERT INTO users(id, username, password) VALUES(null, ?, ?);"""
-            print(statement)
-            c.execute(statement, (username, password))
-            db.commit()
+            # Check if username or password already exists
+            c.execute("SELECT * FROM users WHERE username = ?;", (username,))
+            if c.fetchone():
+                usererror = "That username is already in use by someone else!"
+            else:
+                # Insert user with hashed password
+                c.execute("INSERT INTO users (username, password) VALUES (?, ?);",
+                          (username, generate_password_hash(password)))
+                db.commit()
+                db.close()
+                return redirect(url_for('index'))
+
             db.close()
-            return f"""<html>
-                        <head>
-                            <meta http-equiv="refresh" content="2;url=/" />
-                        </head>
-                        <body>
-                            <h1>SUCCESS!!! Redirecting in 2 seconds...</h1>
-                        </body>
-                        </html>
-                        """
-        
-        db.commit()
-        db.close()
-    return render_template('register.html',usererror=usererror,passworderror=passworderror)
+    return render_template('register.html', usererror=usererror, passworderror=passworderror)
+
 
 
 @app.route("/logout/")
