@@ -2,7 +2,7 @@ import json, sqlite3, click, functools, os, hashlib, time, random, sys
 from flask import Flask, current_app, g, session, redirect, render_template, url_for, request
 from werkzeug.security import generate_password_hash, check_password_hash
 import time
-
+import re
 
 ### DATABASE FUNCTIONS ###
 
@@ -165,6 +165,23 @@ def login():
             error = "Wrong username or password!"
     return render_template('login.html',error=error)
 
+
+# Use a regex to make sure the password is strong enough : https://www.akto.io/tools/password-regex-Python-tester
+# (?=.*[A-Z]): At least one uppercase letter.
+# (?=.*[a-z]): At least one lowercase letter.
+# (?=.*\d): At least one digit.
+# (?=.*[@$!%*?&]): At least one special character.
+# [A-Za-z\d@$!%*?&]{8,}$: Ensures the password is at least 8 characters long and only contains allowed characters.
+
+def check_password_validity(password):
+    pattern = r"^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
+    if re.match(pattern, password):
+        return True
+    else:
+        return False
+    return True
+
+
 @app.route("/register/", methods=('GET', 'POST'))
 def register():
     usererror = ""
@@ -180,6 +197,10 @@ def register():
             passworderror = "Password invalid."
 
         if username and password:
+            validity = check_password_validity(password)
+            if not validity :
+                passworderror = "Password does not not satisfy current policy, it is not strong enough"
+                return render_template('register.html', usererror=usererror, passworderror=passworderror)
             db = connect_db()
             c = db.cursor()
 
