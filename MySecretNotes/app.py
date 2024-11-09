@@ -1,7 +1,7 @@
 import json, sqlite3, click, functools, os, hashlib, time, random, sys
 from flask import Flask, current_app, g, session, redirect, render_template, url_for, request
 from werkzeug.security import generate_password_hash, check_password_hash
-
+import time
 
 
 ### DATABASE FUNCTIONS ###
@@ -65,6 +65,15 @@ def index():
     else:
         return redirect(url_for('notes'))
 
+# ROUTES 
+
+# Dictionary to keep track of the number of accesses 
+# we keep track of the time the last access happened and the number of accesses per user/machine
+# an example could be 
+# {
+#   '192.168.1.12' : (1, 1200000.0)
+# }
+login_attempts={}
 
 @app.route("/notes/", methods=('GET', 'POST'))
 @login_required
@@ -111,22 +120,48 @@ def notes():
 @app.route("/login/", methods=('GET', 'POST'))
 def login():
     error = ""
+    ip_addr = request.remote_addr 
+
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
         db = connect_db()
         c = db.cursor()
+
+        # We have now to check in the dictionary if the user was found
+        if ip_addr in login_attempts:
+            # retrieve the atemmpts if the username is in the attempts
+            attempts, first_attempt_time = login_attempts[ip_addr]
+            if attempts >= 3 and (time.time() - first_attempt_time) < 60:
+                error = "Login failed more than 3 times. Try again in a minute."
+                return render_template('login.html', error=error, lockout=True)
+            elif (time.time() - first_attempt_time) >= 60:
+                # Reset attempts after 1 minute
+                login_attempts[ip_addr] = (0, time.time())
+
+
         statement = "SELECT * FROM users WHERE username = ? AND password = ?"
         c.execute(statement, (username, password))
         result = c.fetchall()
 
         if len(result) > 0:
+            print('siamo qui')
             session.clear()
             session['logged_in'] = True
             session['userid'] = result[0][0]
             session['username']=result[0][1]
+            login_attempts.pop(ip_addr, None)  # Remove IP entry on successful login
             return redirect(url_for('index'))
         else:
+            # if the username is already in the system than increment its name
+            if ip_addr in login_attempts:
+                attempts, first_attempt_time = login_attempts[ip_addr]
+                login_attempts[ip_addr] = (attempts + 1, first_attempt_time)
+            else:
+                # otherwise add it to the system with a trial already done
+                login_attempts[ip_addr] = (1, time.time())
+
+
             error = "Wrong username or password!"
     return render_template('login.html',error=error)
 

@@ -106,14 +106,14 @@
           <div class="col-lg-12">
             <div class="container">
               <h1>Please login</h1>
-                <br>
+              <p style="color: white;">Notice that when more than 3 attempts are done, we will temporarily restrict access</p>
+              <br>
               <form action="" method="post">
                 <input type="text" placeholder="Username" name="username" value="{{
           request.form.username }}">
                 <input type="password" placeholder="Password" name="password" value="{{
           request.form.password }}">
-                <input class="btn-solid-lg" type="submit" value="Login">
-              </form>
+                <input id="loginBtn" class="btn-solid-lg" type="submit" value="Login" {% if lockout %}disabled{% endif %}>              </form>
               {% if error %}
               <p class="p-large"><strong>Error:</strong> {{ error }}
                 {% endif %}
@@ -131,6 +131,15 @@
 
 
   <!-- Scripts -->
+  <script>
+    {% if lockout %}
+      document.getElementById('loginBtn').disabled = true;  // Disable the login button
+      // Set a timer to re-enable the button after 1 minute (60,000 ms)
+      setTimeout(function() {
+        document.getElementById('loginBtn').disabled = false; // Enable the button again
+      }, 60000); // 60,000 ms = 1 minute
+    {% endif %}
+  </script>
   <script src={{ url_for('static',filename='js/jquery.min.js') }}></script>
   <!-- jQuery for Bootstrap's JavaScript plugins -->
   <script src={{ url_for('static',filename='js/popper.min.js') }}></script>
