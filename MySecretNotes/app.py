@@ -140,12 +140,12 @@ def login():
                 login_attempts[ip_addr] = (0, time.time())
 
 
-        statement = "SELECT * FROM users WHERE username = ? AND password = ?"
-        c.execute(statement, (username, password))
+        statement = "SELECT * FROM users WHERE username = ?"
+        c.execute(statement, (username,))
         result = c.fetchall()
+        print(result)
 
-        if len(result) > 0:
-            print('siamo qui')
+        if len(result) > 0 and check_password_hash(result[0][2], password):
             session.clear()
             session['logged_in'] = True
             session['userid'] = result[0][0]
