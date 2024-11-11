@@ -33,7 +33,7 @@ def init_db():
 
     INSERT INTO users (username, password) VALUES('admin', ?);
     INSERT INTO users (username, password) VALUES('bernardo', ?);
-    """, (generate_password_hash("password"), generate_password_hash("omgMPC")))
+    """, (generate_password_hash("password", method='pbkdf2:sha256'), generate_password_hash("omgMPC",method='pbkdf2:sha256')))
 
     db.execute("INSERT INTO notes (assocUser, dateWritten, note, publicID) VALUES (2, '1993-09-23 10:10:10', 'hello my friend', 1234567890);")
     db.execute("INSERT INTO notes (assocUser, dateWritten, note, publicID) VALUES (2, '1993-09-23 12:10:10', 'i want lunch pls', 1234567891);")
@@ -211,7 +211,7 @@ def register():
             else:
                 # Insert user with hashed password
                 c.execute("INSERT INTO users (username, password) VALUES (?, ?);",
-                          (username, generate_password_hash(password)))
+                          (username, generate_password_hash(password,method='pbkdf2:sha256')))
                 db.commit()
                 db.close()
                 return redirect(url_for('index'))
