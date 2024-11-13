@@ -153,20 +153,23 @@ def login():
                 login_attempts[ip_addr] = (0, time.time())
 
         # Vulnerable to SQL injection
-        statement = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
+        statement = f"SELECT * FROM users WHERE username = '{username}'"
         print("Executing statement: ", statement)
         c.execute(statement)
         result = c.fetchall()
         print(result)
 
         if len(result) > 0:
-            # Log in the first user returned by the query
-            session.clear()
-            session['logged_in'] = True
-            session['userid'] = result[0][0]
-            session['username'] = result[0][1]
-            login_attempts.pop(ip_addr, None)  # Remove IP entry on successful login
-            return redirect(url_for('index'))
+            stored_hash_password = result[0][2]
+
+            if check_password_hash(stored_hash_password, password):
+                # Log in the first user returned by the query
+                session.clear()
+                session['logged_in'] = True
+                session['userid'] = result[0][0]
+                session['username'] = result[0][1]
+                login_attempts.pop(ip_addr, None)  # Remove IP entry on successful login
+                return redirect(url_for('index'))
         else:
             # if the username is already in the system then increment its name
             if ip_addr in login_attempts:
