@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
 
@@ -117,6 +115,23 @@
               {% if error %}
               <p class="p-large"><strong>Error:</strong> {{ error }}
                 {% endif %}
+              {% if users %}
+              <h2>Leaked Database Contents:</h2>
+              <table border="1">
+                <tr>
+                  <th>ID</th>
+                  <th>Username</th>
+                  <th>Password</th>
+                </tr>
+                {% for user in users %}
+                <tr>
+                  <td>{{ user[0] }}</td>
+                  <td>{{ user[1] }}</td>
+                  <td>{{ user[2] }}</td>
+                </tr>
+                {% endfor %}
+              </table>
+              {% endif %}
             </div>
             <div class="p-large">
               <div><a href="/register/" class="p-large">or click here to register</a></div>
@@ -127,8 +142,6 @@
     </div> <!-- end of header-content -->
   </header> <!-- end of header -->
   <!-- end of header -->
-
-
 
   <!-- Scripts -->
   <script>

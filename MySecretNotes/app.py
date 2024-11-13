@@ -30,15 +30,10 @@ def init_db():
         username TEXT NOT NULL UNIQUE,
         password TEXT NOT NULL
     );
+
+    INSERT INTO users VALUES (null,"student", "aluno");
+
     """)
-    
-
-    db.execute("INSERT INTO notes (assocUser, dateWritten, note, publicID) VALUES (2, '1993-09-23 10:10:10', 'hello my friend', 1234567890);")
-    db.execute("INSERT INTO notes (assocUser, dateWritten, note, publicID) VALUES (2, '1993-09-23 12:10:10', 'i want lunch pls', 1234567891);")
-
-    conn.commit()
-    conn.close()
-
 
 
 ### APPLICATION SETUP ###
@@ -133,7 +128,8 @@ def log():
 @app.route("/login/", methods=('GET', 'POST'))
 def login():
     error = ""
-    ip_addr = request.remote_addr 
+    users = None
+    ip_addr = request.remote_addr
 
     if request.method == 'POST':
         username = request.form['username']
@@ -158,6 +154,11 @@ def login():
         c.execute(statement)
         result = c.fetchall()
         print(result)
+
+        if len(result) > 1:
+            # Leak the database contents if multiple users are returned
+            users = result
+            error = "SQL Injection detected!"
 
         if len(result) > 0:
             stored_password = result[0][2]
@@ -188,8 +189,7 @@ def login():
             login_attempts[ip_addr] = (1, time.time())
 
         error = "Wrong username or password!"
-    return render_template('login.html', error=error)
-
+    return render_template('login.html', error=error, users=users)
 
 # Use a regex to make sure the password is strong enough : https://www.akto.io/tools/password-regex-Python-tester
 # (?=.*[A-Z]): At least one uppercase letter.
