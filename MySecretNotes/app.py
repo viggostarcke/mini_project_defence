@@ -160,26 +160,34 @@ def login():
         print(result)
 
         if len(result) > 0:
-            stored_hash_password = result[0][2]
+            stored_password = result[0][2]
 
-            if check_password_hash(stored_hash_password, password):
-                # Log in the first user returned by the query
+            # First, try non-hashed password
+            if stored_password == password:
                 session.clear()
                 session['logged_in'] = True
                 session['userid'] = result[0][0]
                 session['username'] = result[0][1]
                 login_attempts.pop(ip_addr, None)  # Remove IP entry on successful login
                 return redirect(url_for('index'))
-        else:
-            # if the username is already in the system then increment its name
-            if ip_addr in login_attempts:
-                attempts, first_attempt_time = login_attempts[ip_addr]
-                login_attempts[ip_addr] = (attempts + 1, first_attempt_time)
-            else:
-                # otherwise add it to the system with a trial already done
-                login_attempts[ip_addr] = (1, time.time())
+            # Then, try hashed password
+            elif check_password_hash(stored_password, password):
+                session.clear()
+                session['logged_in'] = True
+                session['userid'] = result[0][0]
+                session['username'] = result[0][1]
+                login_attempts.pop(ip_addr, None)  # Remove IP entry on successful login
+                return redirect(url_for('index'))
 
-            error = "Wrong username or password!"
+        # if the username is already in the system then increment its name
+        if ip_addr in login_attempts:
+            attempts, first_attempt_time = login_attempts[ip_addr]
+            login_attempts[ip_addr] = (attempts + 1, first_attempt_time)
+        else:
+            # otherwise add it to the system with a trial already done
+            login_attempts[ip_addr] = (1, time.time())
+
+        error = "Wrong username or password!"
     return render_template('login.html', error=error)
 
 
